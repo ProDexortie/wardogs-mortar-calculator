@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# PyInstaller / Build artifacts & Compiled binaries (upload .exe to GitHub Releases)
+build/
+dist/
+*.spec
+*.exe
+*.lnk
+
+# User runtime configuration
+.wardogs_artillery_overlay_lite.json
+config.json
+
+# IDE & OS metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
