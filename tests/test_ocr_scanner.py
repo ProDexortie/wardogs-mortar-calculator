@@ -20,12 +20,11 @@ class TestLiteCoordinateScanner(unittest.TestCase):
         img = Image.new("RGB", (320, 320), (22, 27, 34))
         draw = ImageDraw.Draw(img)
 
-        # Рисуем перекрестие и подписи координат
         draw.line([(130, 0), (130, 320)], fill=(150, 160, 170), width=1)
         draw.line([(0, 160), (320, 160)], fill=(150, 160, 170), width=1)
 
         try:
-            font = ImageFont.truetype("consola.ttf", 20)
+            font = ImageFont.truetype("arial.ttf", 19)
         except Exception:
             font = ImageFont.load_default()
 
@@ -36,6 +35,37 @@ class TestLiteCoordinateScanner(unittest.TestCase):
         self.assertTrue(res.success, f"OCR failed with raw_texts={res.raw_texts}")
         self.assertAlmostEqual(res.x or 0.0, 98.90, places=2)
         self.assertAlmostEqual(res.y or 0.0, 109.79, places=2)
+
+    def test_colored_overlays_resilience(self) -> None:
+        """Проверка устойчивости распознавания при перекрытии красным, зелёным, синим и жёлтым цветом."""
+        for color_rgba in [
+            (255, 35, 35, 95),    # Красное перекрытие
+            (35, 255, 50, 95),    # Зелёное перекрытие
+            (35, 100, 255, 95),   # Синее перекрытие
+            (230, 215, 60, 125),  # Жёлтая дуга/зона
+        ]:
+            with self.subTest(color=color_rgba):
+                base = Image.new("RGBA", (320, 320), (28, 32, 38, 255))
+                draw = ImageDraw.Draw(base)
+                try:
+                    font = ImageFont.truetype("arial.ttf", 19)
+                except Exception:
+                    font = ImageFont.load_default()
+
+                # Рисуем цветную зону/кольцо на карте и поверх неё полупрозрачное перекрытие на тексте
+                draw.ellipse((50, 35, 215, 215), fill=color_rgba[:3] + (80,), outline=color_rgba[:3] + (190,), width=3)
+                draw.text((145, 75), "y71.61", fill=(245, 248, 250, 255), font=font)
+                draw.text((175, 145), "x80.26", fill=(245, 248, 250, 255), font=font)
+
+                tint = Image.new("RGBA", (320, 320), (0, 0, 0, 0))
+                tdraw = ImageDraw.Draw(tint)
+                tdraw.rectangle((135, 65, 260, 180), fill=color_rgba)
+
+                merged = Image.alpha_composite(base, tint).convert("RGB")
+                res = self.scanner.extract_coordinates_from_pil(merged)
+                self.assertTrue(res.success, f"Failed for {color_rgba}: raw={res.raw_texts}")
+                self.assertAlmostEqual(res.x or 0.0, 80.26, places=2)
+                self.assertAlmostEqual(res.y or 0.0, 71.61, places=2)
 
 
 if __name__ == "__main__":
