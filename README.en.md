@@ -101,7 +101,7 @@ python main_lite.py
 To compile a standalone `.exe` binary (using `build_exe.bat` or manually via PyInstaller):
 ```powershell
 pip install pyinstaller
-pyinstaller --noconfirm --onefile --windowed --name WarDogs_Calculator --icon="icon.ico" --add-data "icon.ico;." --add-data "logo.png;." main_lite.py
+pyinstaller --noconfirm --onefile --windowed --name WarDogs_Calculator --icon="icon.ico" --version-file="version_info.txt" --add-data "icon.ico;." --add-data "logo.png;." main_lite.py
 ```
 
 ---

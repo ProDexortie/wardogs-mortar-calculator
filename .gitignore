@@ -14,6 +14,7 @@ build/
 dist/
 *.spec
 *.exe
+*.zip
 *.lnk
 
 # User runtime configuration

@@ -9,7 +9,7 @@ if not exist ".venv\Scripts\python.exe" (
 .venv\Scripts\pip.exe install --quiet pyinstaller
 
 echo [2/3] Сборка автономного файла WarDogs_Calculator.exe...
-.venv\Scripts\pyinstaller.exe --noconfirm --onefile --windowed --name WarDogs_Calculator --icon="icon.ico" --add-data "icon.ico;." --add-data "logo.png;." main_lite.py
+.venv\Scripts\pyinstaller.exe --noconfirm --onefile --windowed --name WarDogs_Calculator --icon="icon.ico" --version-file="version_info.txt" --add-data "icon.ico;." --add-data "logo.png;." main_lite.py
 
 echo [3/3] Очистка временных файлов сборки...
 copy /Y "dist\WarDogs_Calculator.exe" "WarDogs_Calculator.exe" >nul

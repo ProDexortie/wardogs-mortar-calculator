@@ -101,7 +101,7 @@ python main_lite.py
 Сборка автономного `.exe` файла (через скрипт `build_exe.bat` или вручную):
 ```powershell
 pip install pyinstaller
-pyinstaller --noconfirm --onefile --windowed --name WarDogs_Calculator --icon="icon.ico" --add-data "icon.ico;." --add-data "logo.png;." main_lite.py
+pyinstaller --noconfirm --onefile --windowed --name WarDogs_Calculator --icon="icon.ico" --version-file="version_info.txt" --add-data "icon.ico;." --add-data "logo.png;." main_lite.py
 ```
 
 ---
