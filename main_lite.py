@@ -36,13 +36,79 @@ DEFAULT_CONFIG = {
     "opacity": 0.88,
     "capture_size": 320,
     "show_preview": True,
+    "lang": "ru",
     "hotkey_gun": "F1",
     "hotkey_target": "F2",
     "hotkey_edit": "F3",
     "hotkey_hide": "F4",
 }
 
-# Таблица виртуальных кодов клавиш Win32 (VK_*) для назначения и опроса 
+I18N: dict[str, dict[str, str]] = {
+    "ru": {
+        "mode_combat": "● БОЕВОЙ",
+        "mode_settings": "⚙ НАСТРОЙКА",
+        "hint_setup": "Настр.",
+        "hint_hide": "Скрыть",
+        "col_azimuth": "АЗИМУТ",
+        "col_elevation": "ПРИЦЕЛ",
+        "col_distance": "ДИСТАНЦИЯ",
+        "unit_m": "м",
+        "gun_label": "ОРУДИЕ",
+        "target_label": "ЦЕЛЬ",
+        "preview_placeholder": "OCR\nПРЕВЬЮ",
+        "status_idle": "Наведите перекрестие: {gun} — Орудие, {target} — Цель",
+        "status_scanning_gun": "Сканирование ОРУДИЯ...",
+        "status_scanning_target": "Сканирование ЦЕЛИ...",
+        "status_ocr_fail": "Не распознано (X/Y). Наведите точнее на перекрестие.",
+        "status_gun_saved": "Орудие записано: X={x:.2f}, Y={y:.2f}",
+        "status_target_saved": "Цель записана: X={x:.2f}, Y={y:.2f}",
+        "status_rebind_wait": "Нажмите любую клавишу для назначения (ESC — отмена)...",
+        "status_rebind_ok": "Назначена клавиша [ {key} ]",
+        "status_rebind_cancel": "Назначение клавиши отменено",
+        "lbl_language": "Язык интерфейса:",
+        "lbl_opacity": "Непрозрачность:",
+        "lbl_capture": "Область захвата:",
+        "chk_preview": "Показывать мини-превью OCR",
+        "lbl_hotkeys_header": "Горячие клавиши (нажмите на ячейку и нажмите клавишу):",
+        "hk_gun": "Орудие:",
+        "hk_target": "Цель:",
+        "hk_edit": "Настр.:",
+        "hk_hide": "Скрыть:",
+    },
+    "en": {
+        "mode_combat": "● COMBAT",
+        "mode_settings": "⚙ SETTINGS",
+        "hint_setup": "Setup",
+        "hint_hide": "Hide",
+        "col_azimuth": "AZIMUTH",
+        "col_elevation": "ELEVATION",
+        "col_distance": "DISTANCE",
+        "unit_m": "m",
+        "gun_label": "MORTAR",
+        "target_label": "TARGET",
+        "preview_placeholder": "OCR\nPREVIEW",
+        "status_idle": "Hover crosshair: {gun} — Mortar, {target} — Target",
+        "status_scanning_gun": "Scanning MORTAR...",
+        "status_scanning_target": "Scanning TARGET...",
+        "status_ocr_fail": "Failed to read (X/Y). Align crosshair clearly.",
+        "status_gun_saved": "Mortar saved: X={x:.2f}, Y={y:.2f}",
+        "status_target_saved": "Target saved: X={x:.2f}, Y={y:.2f}",
+        "status_rebind_wait": "Press any key to bind (ESC to cancel)...",
+        "status_rebind_ok": "Bound key [ {key} ]",
+        "status_rebind_cancel": "Key binding canceled",
+        "lbl_language": "Language:",
+        "lbl_opacity": "Opacity:",
+        "lbl_capture": "Capture Area:",
+        "chk_preview": "Show OCR Mini-Preview",
+        "lbl_hotkeys_header": "Hotkeys (click a slot and press any key):",
+        "hk_gun": "Mortar:",
+        "hk_target": "Target:",
+        "hk_edit": "Setup:",
+        "hk_hide": "Hide:",
+    },
+}
+
+# Полная таблица виртуальных кодов клавиш Win32 (VK_*) для назначения и опроса как в играх
 VK_MAP: dict[str, int] = {
     **{f"F{i}": 0x70 + (i - 1) for i in range(1, 13)},
     **{chr(c): c for c in range(ord("A"), ord("Z") + 1)},
@@ -113,6 +179,7 @@ class LiteArtilleryOverlay:
         # Состояние бинда клавиш (какой слот сейчас ждёт нажатия клавиши)
         self._rebinding_slot: Optional[str] = None
         self._hk_buttons: dict[str, tk.Button] = {}
+        self._hk_slot_labels: dict[str, tk.Label] = {}
         self._vk_prev_down: dict[int, bool] = {}
 
         self.root = tk.Tk()
@@ -127,6 +194,12 @@ class LiteArtilleryOverlay:
             self._vk_prev_down[vk] = bool(ctypes.windll.user32.GetAsyncKeyState(vk) & 0x8000)
 
         self.root.after(25, self._poll_loop)
+
+    def _tr(self, key: str) -> str:
+        lang = str(self.config.get("lang", "ru")).lower()
+        if lang not in I18N:
+            lang = "ru"
+        return I18N[lang].get(key, I18N["ru"].get(key, key))
 
     def _load_config(self) -> dict:
         cfg = DEFAULT_CONFIG.copy()
@@ -222,7 +295,7 @@ class LiteArtilleryOverlay:
 
         self.lbl_mode = tk.Label(
             header,
-            text="● БОЕВОЙ",
+            text=self._tr("mode_combat"),
             bg="#0b0f19",
             fg="#34d399",
             font=("Segoe UI", 8, "bold"),
@@ -246,7 +319,7 @@ class LiteArtilleryOverlay:
 
         self.lbl_hints = tk.Label(
             header,
-            text=f"[{self.config['hotkey_edit']}] Настр.  [{self.config['hotkey_hide']}] Скрыть",
+            text=f"[{self.config['hotkey_edit']}] {self._tr('hint_setup')}  [{self.config['hotkey_hide']}] {self._tr('hint_hide')}",
             bg="#0b0f19",
             fg="#94a3b8",
             font=("Segoe UI", 8),
@@ -264,14 +337,20 @@ class LiteArtilleryOverlay:
         )
         metrics_box.pack(fill=tk.X, pady=(0, 6))
 
-        for col, title in enumerate(("АЗИМУТ", "ПРИЦЕЛ", "ДИСТАНЦИЯ")):
-            tk.Label(
-                metrics_box,
-                text=title,
-                bg="#111827",
-                fg="#64748b",
-                font=("Segoe UI", 7, "bold"),
-            ).grid(row=0, column=col, sticky="w", padx=(0 if col == 0 else 12, 0))
+        self.lbl_col_az = tk.Label(
+            metrics_box, text=self._tr("col_azimuth"), bg="#111827", fg="#64748b", font=("Segoe UI", 7, "bold")
+        )
+        self.lbl_col_az.grid(row=0, column=0, sticky="w")
+
+        self.lbl_col_el = tk.Label(
+            metrics_box, text=self._tr("col_elevation"), bg="#111827", fg="#64748b", font=("Segoe UI", 7, "bold")
+        )
+        self.lbl_col_el.grid(row=0, column=1, sticky="w", padx=(12, 0))
+
+        self.lbl_col_dist = tk.Label(
+            metrics_box, text=self._tr("col_distance"), bg="#111827", fg="#64748b", font=("Segoe UI", 7, "bold")
+        )
+        self.lbl_col_dist.grid(row=0, column=2, sticky="w", padx=(12, 0))
 
         self.lbl_azimuth = tk.Label(
             metrics_box,
@@ -293,7 +372,7 @@ class LiteArtilleryOverlay:
 
         self.lbl_dist = tk.Label(
             metrics_box,
-            text="--- м",
+            text=f"--- {self._tr('unit_m')}",
             bg="#111827",
             fg="#f8fafc",
             font=("Consolas", 15, "bold"),
@@ -309,7 +388,7 @@ class LiteArtilleryOverlay:
 
         self.lbl_gun_title = tk.Label(
             coords_frame,
-            text=f"ОРУДИЕ [{self.config['hotkey_gun']}]",
+            text=f"{self._tr('gun_label')} [{self.config['hotkey_gun']}]",
             bg="#0b0f19",
             fg="#94a3b8",
             font=("Segoe UI", 8, "bold"),
@@ -323,7 +402,7 @@ class LiteArtilleryOverlay:
 
         self.lbl_target_title = tk.Label(
             coords_frame,
-            text=f"ЦЕЛЬ [{self.config['hotkey_target']}]",
+            text=f"{self._tr('target_label')} [{self.config['hotkey_target']}]",
             bg="#0b0f19",
             fg="#94a3b8",
             font=("Segoe UI", 8, "bold"),
@@ -338,7 +417,7 @@ class LiteArtilleryOverlay:
         # Мини-превью распознавания
         self.preview_lbl = tk.Label(
             mid_frame,
-            text="OCR\nПРЕВЬЮ",
+            text=self._tr("preview_placeholder"),
             bg="#111827",
             fg="#475569",
             font=("Segoe UI", 7),
@@ -353,7 +432,9 @@ class LiteArtilleryOverlay:
         # Статус-строка
         self.lbl_status = tk.Label(
             self.main_frame,
-            text=f"Наведите перекрестие: {self.config['hotkey_gun']} — Орудие, {self.config['hotkey_target']} — Цель",
+            text=self._tr("status_idle").format(
+                gun=self.config["hotkey_gun"], target=self.config["hotkey_target"]
+            ),
             bg="#0b0f19",
             fg="#64748b",
             font=("Segoe UI", 8),
@@ -371,12 +452,44 @@ class LiteArtilleryOverlay:
             pady=6,
         )
 
+        # Выбор языка (RU / EN)
+        lang_row = tk.Frame(self.settings_frame, bg="#111827")
+        lang_row.pack(fill=tk.X, pady=(0, 3))
+        self.lbl_lang_title = tk.Label(
+            lang_row, text=self._tr("lbl_language"), bg="#111827", fg="#cbd5e1", font=("Segoe UI", 8)
+        )
+        self.lbl_lang_title.pack(side=tk.LEFT)
+
+        self.btn_lang_en = tk.Button(
+            lang_row,
+            text="EN",
+            width=4,
+            bd=0,
+            font=("Consolas", 8, "bold"),
+            cursor="hand2",
+            command=lambda: self._set_language("en"),
+        )
+        self.btn_lang_en.pack(side=tk.RIGHT, padx=(3, 0))
+
+        self.btn_lang_ru = tk.Button(
+            lang_row,
+            text="RU",
+            width=4,
+            bd=0,
+            font=("Consolas", 8, "bold"),
+            cursor="hand2",
+            command=lambda: self._set_language("ru"),
+        )
+        self.btn_lang_ru.pack(side=tk.RIGHT)
+        self._update_lang_buttons_style()
+
         # Ползунок прозрачности
         op_row = tk.Frame(self.settings_frame, bg="#111827")
         op_row.pack(fill=tk.X, pady=2)
-        tk.Label(
-            op_row, text="Непрозрачность:", bg="#111827", fg="#cbd5e1", font=("Segoe UI", 8)
-        ).pack(side=tk.LEFT)
+        self.lbl_op_title = tk.Label(
+            op_row, text=self._tr("lbl_opacity"), bg="#111827", fg="#cbd5e1", font=("Segoe UI", 8)
+        )
+        self.lbl_op_title.pack(side=tk.LEFT)
         self.lbl_op_val = tk.Label(
             op_row,
             text=f"{int(float(self.config['opacity']) * 100)}%",
@@ -404,9 +517,10 @@ class LiteArtilleryOverlay:
         # Ползунок области захвата
         cap_row = tk.Frame(self.settings_frame, bg="#111827")
         cap_row.pack(fill=tk.X, pady=2)
-        tk.Label(
-            cap_row, text="Область захвата:", bg="#111827", fg="#cbd5e1", font=("Segoe UI", 8)
-        ).pack(side=tk.LEFT)
+        self.lbl_cap_title = tk.Label(
+            cap_row, text=self._tr("lbl_capture"), bg="#111827", fg="#cbd5e1", font=("Segoe UI", 8)
+        )
+        self.lbl_cap_title.pack(side=tk.LEFT)
         self.lbl_cap_val = tk.Label(
             cap_row,
             text=f"{int(self.config['capture_size'])}px",
@@ -434,9 +548,9 @@ class LiteArtilleryOverlay:
 
         # Чекбокс превью
         self.var_preview = tk.BooleanVar(value=bool(self.config.get("show_preview", True)))
-        chk = tk.Checkbutton(
+        self.chk_preview_btn = tk.Checkbutton(
             self.settings_frame,
-            text="Показывать мини-превью OCR",
+            text=self._tr("chk_preview"),
             variable=self.var_preview,
             bg="#111827",
             fg="#cbd5e1",
@@ -446,24 +560,25 @@ class LiteArtilleryOverlay:
             font=("Segoe UI", 8),
             command=self._on_toggle_preview,
         )
-        chk.pack(anchor="w", pady=2)
+        self.chk_preview_btn.pack(anchor="w", pady=2)
 
         # Блок назначения горячих клавиш
-        tk.Label(
+        self.lbl_hk_header = tk.Label(
             self.settings_frame,
-            text="Горячие клавиши (нажмите на ячейку и нажмите клавишу):",
+            text=self._tr("lbl_hotkeys_header"),
             bg="#111827",
             fg="#94a3b8",
             font=("Segoe UI", 7, "bold"),
-        ).pack(anchor="w", pady=(4, 2))
+        )
+        self.lbl_hk_header.pack(anchor="w", pady=(4, 2))
 
         hk_grid = tk.Frame(self.settings_frame, bg="#111827")
         hk_grid.pack(fill=tk.X, pady=(0, 2))
 
-        self._create_game_keybind_slot(hk_grid, "Орудие:", "hotkey_gun", 0, 0)
-        self._create_game_keybind_slot(hk_grid, "Цель:", "hotkey_target", 0, 2)
-        self._create_game_keybind_slot(hk_grid, "Настр.:", "hotkey_edit", 1, 0)
-        self._create_game_keybind_slot(hk_grid, "Скрыть:", "hotkey_hide", 1, 2)
+        self._create_game_keybind_slot(hk_grid, "hk_gun", "hotkey_gun", 0, 0)
+        self._create_game_keybind_slot(hk_grid, "hk_target", "hotkey_target", 0, 2)
+        self._create_game_keybind_slot(hk_grid, "hk_edit", "hotkey_edit", 1, 0)
+        self._create_game_keybind_slot(hk_grid, "hk_hide", "hotkey_hide", 1, 2)
 
         # Перетаскивание окна мышью
         for w in (self.main_frame, header, self.lbl_mode, metrics_box):
@@ -471,12 +586,59 @@ class LiteArtilleryOverlay:
             w.bind("<B1-Motion>", self._on_drag_motion)
             w.bind("<ButtonRelease-1>", self._on_drag_end)
 
+    def _update_lang_buttons_style(self) -> None:
+        cur_lang = str(self.config.get("lang", "ru")).lower()
+        if cur_lang == "en":
+            self.btn_lang_en.configure(bg="#0284c7", fg="#ffffff")
+            self.btn_lang_ru.configure(bg="#1e293b", fg="#94a3b8")
+        else:
+            self.btn_lang_ru.configure(bg="#0284c7", fg="#ffffff")
+            self.btn_lang_en.configure(bg="#1e293b", fg="#94a3b8")
+
+    def _set_language(self, lang: str) -> None:
+        self.config["lang"] = lang.lower()
+        self._save_config()
+        self._update_lang_buttons_style()
+
+        self.lbl_mode.configure(
+            text=self._tr("mode_settings") if self.is_edit_mode else self._tr("mode_combat")
+        )
+        self.lbl_col_az.configure(text=self._tr("col_azimuth"))
+        self.lbl_col_el.configure(text=self._tr("col_elevation"))
+        self.lbl_col_dist.configure(text=self._tr("col_distance"))
+
+        if self._photo_ref is None:
+            self.preview_lbl.configure(text=self._tr("preview_placeholder"))
+
+        self.lbl_lang_title.configure(text=self._tr("lbl_language"))
+        self.lbl_op_title.configure(text=self._tr("lbl_opacity"))
+        self.lbl_cap_title.configure(text=self._tr("lbl_capture"))
+        self.chk_preview_btn.configure(text=self._tr("chk_preview"))
+        self.lbl_hk_header.configure(text=self._tr("lbl_hotkeys_header"))
+
+        for tr_key, lbl_widget in self._hk_slot_labels.items():
+            lbl_widget.configure(text=self._tr(tr_key))
+
+        self._refresh_hotkey_labels()
+        self.lbl_status.configure(
+            text=self._tr("status_idle").format(
+                gun=self.config["hotkey_gun"], target=self.config["hotkey_target"]
+            ),
+            fg="#64748b",
+        )
+        if None in (self.gun_x, self.gun_y, self.target_x, self.target_y):
+            self.lbl_dist.configure(text=f"--- {self._tr('unit_m')}")
+        else:
+            self._recalculate()
+
     def _create_game_keybind_slot(
-        self, parent: tk.Widget, label_text: str, cfg_key: str, row: int, col: int
+        self, parent: tk.Widget, label_tr_key: str, cfg_key: str, row: int, col: int
     ) -> None:
-        tk.Label(
-            parent, text=label_text, bg="#111827", fg="#cbd5e1", font=("Segoe UI", 8)
-        ).grid(row=row, column=col, sticky="w", padx=(0 if col == 0 else 10, 4), pady=2)
+        lbl = tk.Label(
+            parent, text=self._tr(label_tr_key), bg="#111827", fg="#cbd5e1", font=("Segoe UI", 8)
+        )
+        lbl.grid(row=row, column=col, sticky="w", padx=(0 if col == 0 else 10, 4), pady=2)
+        self._hk_slot_labels[label_tr_key] = lbl
 
         cur_val = str(self.config.get(cfg_key, "F1")).upper()
         btn = tk.Button(
@@ -498,7 +660,6 @@ class LiteArtilleryOverlay:
         self._hk_buttons[cfg_key] = btn
 
     def _start_rebinding(self, cfg_key: str) -> None:
-        # Если другой слот уже был в режиме ожидания — возвращаем ему прежнее значение
         if self._rebinding_slot is not None and self._rebinding_slot in self._hk_buttons:
             prev_val = str(self.config.get(self._rebinding_slot, "")).upper()
             self._hk_buttons[self._rebinding_slot].configure(
@@ -517,7 +678,7 @@ class LiteArtilleryOverlay:
             highlightbackground="#fbbf24",
         )
         self.lbl_status.configure(
-            text="Нажмите любую клавишу для назначения (ESC — отмена)...",
+            text=self._tr("status_rebind_wait"),
             fg="#fbbf24",
         )
 
@@ -534,10 +695,10 @@ class LiteArtilleryOverlay:
             self._save_config()
             self._refresh_hotkey_labels()
             self.lbl_status.configure(
-                text=f"Назначена клавиша [ {new_key_name} ]", fg="#34d399"
+                text=self._tr("status_rebind_ok").format(key=new_key_name), fg="#34d399"
             )
         else:
-            self.lbl_status.configure(text="Назначение клавиши отменено", fg="#94a3b8")
+            self.lbl_status.configure(text=self._tr("status_rebind_cancel"), fg="#94a3b8")
 
         if btn is not None:
             final_val = str(self.config.get(slot, "")).upper()
@@ -549,10 +710,10 @@ class LiteArtilleryOverlay:
             )
 
     def _refresh_hotkey_labels(self) -> None:
-        self.lbl_gun_title.configure(text=f"ОРУДИЕ [{self.config['hotkey_gun']}]")
-        self.lbl_target_title.configure(text=f"ЦЕЛЬ [{self.config['hotkey_target']}]")
+        self.lbl_gun_title.configure(text=f"{self._tr('gun_label')} [{self.config['hotkey_gun']}]")
+        self.lbl_target_title.configure(text=f"{self._tr('target_label')} [{self.config['hotkey_target']}]")
         self.lbl_hints.configure(
-            text=f"[{self.config['hotkey_edit']}] Настр.  [{self.config['hotkey_hide']}] Скрыть"
+            text=f"[{self.config['hotkey_edit']}] {self._tr('hint_setup')}  [{self.config['hotkey_hide']}] {self._tr('hint_hide')}"
         )
 
     def _make_coord_entry(self, parent: tk.Widget, default_text: str) -> tk.Entry:
@@ -647,14 +808,14 @@ class LiteArtilleryOverlay:
             ent.configure(state=new_state)
 
         if self.is_edit_mode:
-            self.lbl_mode.configure(text="⚙ НАСТРОЙКА", fg="#38bdf8")
+            self.lbl_mode.configure(text=self._tr("mode_settings"), fg="#38bdf8")
             self.root.configure(highlightbackground="#38bdf8")
             self.btn_close.pack(side=tk.RIGHT, padx=(4, 0))
             self.settings_frame.pack(fill=tk.X, pady=(6, 0))
             self._apply_click_through(False)
         else:
             self._apply_manual_coords()
-            self.lbl_mode.configure(text="● БОЕВОЙ", fg="#34d399")
+            self.lbl_mode.configure(text=self._tr("mode_combat"), fg="#34d399")
             self.root.configure(highlightbackground="#334155")
             self.btn_close.pack_forget()
             self.settings_frame.pack_forget()
@@ -675,7 +836,8 @@ class LiteArtilleryOverlay:
             return
         cap_size = int(self.config.get("capture_size", 320))
         self.lbl_status.configure(
-            text=f"Сканирование {'ОРУДИЯ' if role == 'gun' else 'ЦЕЛИ'}...", fg="#38bdf8"
+            text=self._tr("status_scanning_gun" if role == "gun" else "status_scanning_target"),
+            fg="#38bdf8",
         )
 
         def worker() -> None:
@@ -703,7 +865,7 @@ class LiteArtilleryOverlay:
 
         if not res.success or res.x is None or res.y is None:
             self.lbl_status.configure(
-                text="Не распознано (X/Y). Наведите точнее на перекрестие.", fg="#f87171"
+                text=self._tr("status_ocr_fail"), fg="#f87171"
             )
             return
 
@@ -712,14 +874,14 @@ class LiteArtilleryOverlay:
             self._set_entry_text(self.ent_gun_x, f"X:{res.x:.2f}")
             self._set_entry_text(self.ent_gun_y, f"Y:{res.y:.2f}")
             self.lbl_status.configure(
-                text=f"Орудие записано: X={res.x:.2f}, Y={res.y:.2f}", fg="#34d399"
+                text=self._tr("status_gun_saved").format(x=res.x, y=res.y), fg="#34d399"
             )
         else:
             self.target_x, self.target_y = res.x, res.y
             self._set_entry_text(self.ent_target_x, f"X:{res.x:.2f}")
             self._set_entry_text(self.ent_target_y, f"Y:{res.y:.2f}")
             self.lbl_status.configure(
-                text=f"Цель записана: X={res.x:.2f}, Y={res.y:.2f}", fg="#38bdf8"
+                text=self._tr("status_target_saved").format(x=res.x, y=res.y), fg="#38bdf8"
             )
 
         self._recalculate()
@@ -728,8 +890,9 @@ class LiteArtilleryOverlay:
         if None in (self.gun_x, self.gun_y, self.target_x, self.target_y):
             return
         res = calculate_ballistics(self.gun_x, self.gun_y, self.target_x, self.target_y)
+        unit = self._tr("unit_m")
         self.lbl_azimuth.configure(text=f"{res.azimuth_deg:05.1f}°")
-        self.lbl_dist.configure(text=f"{int(res.distance_m)} м")
+        self.lbl_dist.configure(text=f"{int(res.distance_m)} {unit}")
 
         if res.range_status == "OK" and res.elevation_mil is not None:
             self.lbl_mil.configure(
@@ -737,11 +900,11 @@ class LiteArtilleryOverlay:
             )
         elif res.range_status == "TOO_CLOSE":
             self.lbl_mil.configure(
-                text=f"<{int(MIN_RANGE_M)}м!", fg="#f87171", font=("Consolas", 13, "bold")
+                text=f"<{int(MIN_RANGE_M)}{unit}!", fg="#f87171", font=("Consolas", 13, "bold")
             )
         else:
             self.lbl_mil.configure(
-                text=f">{int(MAX_RANGE_M)}м!", fg="#f87171", font=("Consolas", 13, "bold")
+                text=f">{int(MAX_RANGE_M)}{unit}!", fg="#f87171", font=("Consolas", 13, "bold")
             )
 
     def _poll_loop(self) -> None:
