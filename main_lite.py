@@ -10,6 +10,7 @@ from typing import Optional
 from PIL import Image, ImageTk
 
 from ballistics import MIN_RANGE_M, MAX_RANGE_M, calculate_ballistics
+from i18n import DEFAULT_LANGUAGE, Localizer
 from ocr_scanner_lite import LiteCoordinateScanner, LiteScanResult
 
 # Включаем Per-Monitor DPI Awareness для точного совпадения физических пикселей экрана
@@ -36,76 +37,11 @@ DEFAULT_CONFIG = {
     "opacity": 0.88,
     "capture_size": 320,
     "show_preview": True,
-    "lang": "ru",
+    "lang": DEFAULT_LANGUAGE,
     "hotkey_gun": "F1",
     "hotkey_target": "F2",
     "hotkey_edit": "F3",
     "hotkey_hide": "F4",
-}
-
-I18N: dict[str, dict[str, str]] = {
-    "ru": {
-        "mode_combat": "● БОЕВОЙ",
-        "mode_settings": "⚙ НАСТРОЙКА",
-        "hint_setup": "Настр.",
-        "hint_hide": "Скрыть",
-        "col_azimuth": "АЗИМУТ",
-        "col_elevation": "ПРИЦЕЛ",
-        "col_distance": "ДИСТАНЦИЯ",
-        "unit_m": "м",
-        "gun_label": "ОРУДИЕ",
-        "target_label": "ЦЕЛЬ",
-        "preview_placeholder": "OCR\nПРЕВЬЮ",
-        "status_idle": "Наведите перекрестие: {gun} — Орудие, {target} — Цель",
-        "status_scanning_gun": "Сканирование ОРУДИЯ...",
-        "status_scanning_target": "Сканирование ЦЕЛИ...",
-        "status_ocr_fail": "Не распознано (X/Y). Наведите точнее на перекрестие.",
-        "status_gun_saved": "Орудие записано: X={x:.2f}, Y={y:.2f}",
-        "status_target_saved": "Цель записана: X={x:.2f}, Y={y:.2f}",
-        "status_rebind_wait": "Нажмите любую клавишу для назначения (ESC — отмена)...",
-        "status_rebind_ok": "Назначена клавиша [ {key} ]",
-        "status_rebind_cancel": "Назначение клавиши отменено",
-        "lbl_language": "Язык интерфейса:",
-        "lbl_opacity": "Непрозрачность:",
-        "lbl_capture": "Область захвата:",
-        "chk_preview": "Показывать мини-превью OCR",
-        "lbl_hotkeys_header": "Горячие клавиши (нажмите на ячейку и нажмите клавишу):",
-        "hk_gun": "Орудие:",
-        "hk_target": "Цель:",
-        "hk_edit": "Настр.:",
-        "hk_hide": "Скрыть:",
-    },
-    "en": {
-        "mode_combat": "● COMBAT",
-        "mode_settings": "⚙ SETTINGS",
-        "hint_setup": "Setup",
-        "hint_hide": "Hide",
-        "col_azimuth": "AZIMUTH",
-        "col_elevation": "ELEVATION",
-        "col_distance": "DISTANCE",
-        "unit_m": "m",
-        "gun_label": "MORTAR",
-        "target_label": "TARGET",
-        "preview_placeholder": "OCR\nPREVIEW",
-        "status_idle": "Hover crosshair: {gun} — Mortar, {target} — Target",
-        "status_scanning_gun": "Scanning MORTAR...",
-        "status_scanning_target": "Scanning TARGET...",
-        "status_ocr_fail": "Failed to read (X/Y). Align crosshair clearly.",
-        "status_gun_saved": "Mortar saved: X={x:.2f}, Y={y:.2f}",
-        "status_target_saved": "Target saved: X={x:.2f}, Y={y:.2f}",
-        "status_rebind_wait": "Press any key to bind (ESC to cancel)...",
-        "status_rebind_ok": "Bound key [ {key} ]",
-        "status_rebind_cancel": "Key binding canceled",
-        "lbl_language": "Language:",
-        "lbl_opacity": "Opacity:",
-        "lbl_capture": "Capture Area:",
-        "chk_preview": "Show OCR Mini-Preview",
-        "lbl_hotkeys_header": "Hotkeys (click a slot and press any key):",
-        "hk_gun": "Mortar:",
-        "hk_target": "Target:",
-        "hk_edit": "Setup:",
-        "hk_hide": "Hide:",
-    },
 }
 
 # Полная таблица виртуальных кодов клавиш Win32 (VK_*) для назначения и опроса как в играх
@@ -160,6 +96,7 @@ WS_EX_TRANSPARENT = 0x00000020
 class LiteArtilleryOverlay:
     def __init__(self) -> None:
         self.config = self._load_config()
+        self.i18n = Localizer(self.config.get("lang", DEFAULT_LANGUAGE))
         self.scanner = LiteCoordinateScanner()
         self.result_queue: queue.Queue[tuple[str, LiteScanResult]] = queue.Queue()
         self._scan_lock = threading.Lock()
@@ -195,11 +132,8 @@ class LiteArtilleryOverlay:
 
         self.root.after(25, self._poll_loop)
 
-    def _tr(self, key: str) -> str:
-        lang = str(self.config.get("lang", "ru")).lower()
-        if lang not in I18N:
-            lang = "ru"
-        return I18N[lang].get(key, I18N["ru"].get(key, key))
+    def _tr(self, key: str, **kwargs: object) -> str:
+        return self.i18n.get(key, **kwargs)
 
     def _load_config(self) -> dict:
         cfg = DEFAULT_CONFIG.copy()
@@ -587,8 +521,7 @@ class LiteArtilleryOverlay:
             w.bind("<ButtonRelease-1>", self._on_drag_end)
 
     def _update_lang_buttons_style(self) -> None:
-        cur_lang = str(self.config.get("lang", "ru")).lower()
-        if cur_lang == "en":
+        if self.i18n.language == "en":
             self.btn_lang_en.configure(bg="#0284c7", fg="#ffffff")
             self.btn_lang_ru.configure(bg="#1e293b", fg="#94a3b8")
         else:
@@ -596,7 +529,8 @@ class LiteArtilleryOverlay:
             self.btn_lang_en.configure(bg="#1e293b", fg="#94a3b8")
 
     def _set_language(self, lang: str) -> None:
-        self.config["lang"] = lang.lower()
+        active_lang = self.i18n.set_language(lang)
+        self.config["lang"] = active_lang
         self._save_config()
         self._update_lang_buttons_style()
 
